@@ -13,8 +13,13 @@
 extern crate rs_net_snmp;
 
 use rs_net_snmp::NetSNMP;
+use rs_net_snmp::SNMPVersion;
 
 fn main() {
     // Create a new session
-    let rsnsmp: NetSNMP = NetSNMP::new();
+    let rssnmp: NetSNMP = NetSNMP::new();
+    // Are these okay to unwrap and panic? Or should we be better?
+    rssnmp.set_community("public").unwrap();
+    rssnmp.set_version(SNMPVersion::VERSION_2c).unwrap();
+    rssnmp.destroy();
 }
