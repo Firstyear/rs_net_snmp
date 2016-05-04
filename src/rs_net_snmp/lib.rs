@@ -38,6 +38,8 @@ extern {
     fn rs_netsnmp_create_session() -> *const libc::c_void;
     fn rs_netsnmp_set_version(session: *const libc::c_void, version: isize) -> isize;
     fn rs_netsnmp_set_community(session: *const libc::c_void, community: *const c_char) -> isize;
+    fn rs_netsnmp_set_peername(session: *const libc::c_void, hostname: *const c_char) -> isize;
+    fn rs_netsnmp_get_peername(session: *const libc::c_void) -> *mut c_char;
     fn rs_netsnmp_destroy_session(session: *const libc::c_void);
 }
 
@@ -75,6 +77,18 @@ impl NetSNMP {
         }
     }
 
+    pub fn set_transport(&self, transport: &str) -> Result<(), SNMPError> {
+        // This should match man 1 snmpcmd AGENT SPECIFICATION
+        // This api later could be broken up, it's very 1:1 atm.
+        let c_transport = CString::new(transport).unwrap();
+        unsafe {
+            match rs_netsnmp_set_peername(self.netsnmp_session, c_transport.into_raw()) {
+                0 => Ok(()),
+                _ => Err(SNMPError::Unknown),
+            }
+        }
+    }
+
     pub fn open_session(&self) -> Result<(), SNMPError> {
         // This should check the VERSION of snmp, and then that the right
         //  parts have been filled in. 
@@ -84,7 +98,13 @@ impl NetSNMP {
 
     // WARNING: This would be much better in a drop ....
     pub fn destroy(&self) {
+        // We need to check *all* the places where we might have called cstring into_raw, and see if we need to dealloc
         unsafe {
+            let session_peername = rs_netsnmp_get_peername(self.netsnmp_session);
+            if (!session_peername.is_null()) {
+                let _peername = CString::from_raw(session_peername);
+                //Now it will go out of scope and freed correctly
+            }
             rs_netsnmp_destroy_session(self.netsnmp_session);
         }
     }

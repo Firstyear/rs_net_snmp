@@ -52,10 +52,29 @@ int
 rs_netsnmp_set_community(netsnmp_session *session, char *community) {
     int res = 1;
     // Do I need to strdup this?
+    // According to gdb, no.
+    // (gdb) print (*(netsnmp_session *)rssnmp.netsnmp_session).community
+    // $9 = (u_char *) 0x7ffff4903840 "public"
+    // But it may depend on the parent string lifetime.
+
     session->community = community;
     session->community_len = strlen(community);
     res = 0;
     return res;
+}
+
+int
+rs_netsnmp_set_peername(netsnmp_session *session, char *transport)
+{
+    // Do I need to strdup this?
+    session->peername = transport;
+    return 0;
+}
+
+void *
+rs_netsnmp_get_peername(netsnmp_session *session) {
+    // Returns the current value of session->peername. This way we know if we need to 
+    return session->peername;
 }
 
 int
