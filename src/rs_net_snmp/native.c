@@ -14,6 +14,8 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <string.h>
 
+typedef void (*rust_callback)(void*);
+
 netsnmp_session *
 rs_netsnmp_create_session() {
     // Create a net-snmp session pointer.
@@ -31,6 +33,11 @@ rs_netsnmp_create_session() {
 
 netsnmp_session *
 rs_netsnmp_create_null_session() {
+    return NULL;
+}
+
+netsnmp_pdu *
+rs_netsnmp_create_null_variable() {
     return NULL;
 }
 
@@ -148,7 +155,9 @@ _rs_netsnmp_display_variables(netsnmp_pdu *response) {
 // How would I clean up?
 
 int
-rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid) {
+rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_target, rust_callback callback) {
+    void *cb_target = callback_target; // This is the object (self)
+    rust_callback cb = callback; // This is the actual cb
     netsnmp_pdu *pdu = NULL;
     netsnmp_pdu *response = NULL;
     size_t parsed_oid_len = MAX_OID_LEN;
@@ -157,6 +166,9 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid) {
     int rs_result = -1;
 
     printf("%s = ", request_oid);
+
+    // Test the cb
+    cb(cb_target);
 
     // Create a PDU for the data to land in
     pdu = snmp_pdu_create(SNMP_MSG_GET);

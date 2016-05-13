@@ -48,6 +48,12 @@ pub enum SNMPError {
 }
 
 #[derive(Debug)]
+pub enum SNMPPdu<'a> {
+    AsnOctetStr { s: &'a str },
+    AsnInteger { i: isize },
+}
+
+#[derive(Debug)]
 /// The current state of the struct. This protects certain values.
 enum SNMPState {
     /// The NetSnmp structure is just made. Only set_* can be called.
@@ -74,7 +80,7 @@ extern {
     fn rs_netsnmp_set_peername(session: *const libc::c_void, hostname: *const c_char) -> isize;
     // fn rs_netsnmp_get_peername(session: *const libc::c_void) -> *mut c_char;
     fn rs_netsnmp_open_session(session: *const libc::c_void) -> *const libc::c_void;
-    fn rs_netsnmp_get_oid(session: *const libc::c_void, oid: *const c_char) -> isize;
+    fn rs_netsnmp_get_oid(session: *const libc::c_void, oid: *const c_char, target: *mut Vec<SNMPPdu>, cb: extern fn(*mut Vec<SNMPPdu>) -> isize) -> isize;
     fn rs_netsnmp_destroy_session(session: *const libc::c_void);
 }
 
@@ -84,8 +90,17 @@ pub struct NetSNMP {
     // struct for the native helper.
     netsnmp_session: *const libc::c_void,
     active_session: *const libc::c_void,
+    // active_variable: *const libc::c_void,
     state: SNMPState,
 }
+
+extern "C" fn _set_result_cb(target: *mut Vec<SNMPPdu>) -> isize {
+    let results: Vec<SNMPPdu> = target as _;
+    results.append(SNMPPdu::AsnInteger{i: 1} );
+    println!("Boo");
+    0
+}
+
 
 impl NetSNMP {
     /// Creates a new NetSNMP struct with a blank session.
@@ -94,6 +109,7 @@ impl NetSNMP {
             NetSNMP {
                 netsnmp_session: rs_netsnmp_create_session(),
                 active_session: rs_netsnmp_create_null_session(),
+                // active_variable: rs_netsnmp_create_null_variable(),
                 state: SNMPState::New,
             }
         }
@@ -168,8 +184,12 @@ impl NetSNMP {
         }
     }
 
+
     /// Given an OID string, return the value, or unit () if no value exists.
     pub fn get_oid(&self, oid: &str) -> Result<(), SNMPError> {
+        // Create a new vec empty vec.
+        let mut results: Vec<SNMPPdu> = Vec::new();
+        let rptr = &mut results as *mut _;
         match self.state {
             SNMPState::Connected => {},
             _ => return Err(SNMPError::InvalidState)
@@ -177,11 +197,13 @@ impl NetSNMP {
         // Perhaps this should be Result<Option<>, SNMPError>> ??
         let c_oid = CString::new(oid).unwrap();
         unsafe {
-            match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr()) {
+            match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), rptr, _set_result_cb) {
                 0 => Ok(()),
                 _ => Err(SNMPError::Unknown),
             }
         }
+
+        
     }
 
     // We should have a private fn that after the OID is grabbed,
