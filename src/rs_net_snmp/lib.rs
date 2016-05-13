@@ -18,6 +18,7 @@ extern crate libc;
 
 use std::os::raw::c_char;
 use std::ffi::CString;
+use std::ffi::CStr;
 
 
 // use libc;
@@ -34,6 +35,10 @@ pub enum SNMPVersion {
     VERSION_3,
 }
 
+pub const ASN_OCTET_STR: isize = 4;
+pub const ASN_OID: isize = 6;
+pub const ASN_TIMETICKS: isize = 67;
+
 #[derive(Debug)]
 /// Errors that can occur during SNMP processing
 pub enum SNMPError {
@@ -48,8 +53,8 @@ pub enum SNMPError {
 }
 
 #[derive(Debug)]
-pub enum SNMPPdu<'a> {
-    AsnOctetStr { s: &'a str },
+pub enum SNMPResult {
+    AsnOctetStr { s: String },
     AsnInteger { i: isize },
 }
 
@@ -80,25 +85,39 @@ extern {
     fn rs_netsnmp_set_peername(session: *const libc::c_void, hostname: *const c_char) -> isize;
     // fn rs_netsnmp_get_peername(session: *const libc::c_void) -> *mut c_char;
     fn rs_netsnmp_open_session(session: *const libc::c_void) -> *const libc::c_void;
-    fn rs_netsnmp_get_oid(session: *const libc::c_void, oid: *const c_char, target: *mut Vec<SNMPPdu>, cb: extern fn(*mut Vec<SNMPPdu>) -> isize) -> isize;
+    fn rs_netsnmp_get_oid(session: *const libc::c_void, oid: *const c_char, target: *mut NetSNMP, cb: extern fn(*mut NetSNMP, isize, *const libc::c_void) -> isize) -> isize;
     fn rs_netsnmp_destroy_session(session: *const libc::c_void);
 }
 
 /// NetSNMP tracks an active connection session to an snmpd daemon.
+#[derive(Debug)]
 pub struct NetSNMP {
     // I think this just needs to track the pointer to the internal
     // struct for the native helper.
     netsnmp_session: *const libc::c_void,
     active_session: *const libc::c_void,
     // active_variable: *const libc::c_void,
+    active_variables: Vec<SNMPResult>,
     state: SNMPState,
 }
 
-extern "C" fn _set_result_cb(target: *mut Vec<SNMPPdu>) -> isize {
-    let results: Vec<SNMPPdu> = target as _;
-    results.append(SNMPPdu::AsnInteger{i: 1} );
-    println!("Boo");
-    0
+extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const libc::c_void) -> isize {
+    match asntype {
+        ASN_OCTET_STR => {
+            let ptr: *const c_char = data as *const c_char;
+            unsafe {
+                let value = CStr::from_ptr(ptr).to_string_lossy().into_owned();
+                // println!("{:?}", value);
+                // println!("{:?}", (*target));
+                (*target).active_variables.push(SNMPResult::AsnOctetStr{s: value} );
+            }
+            return 0;
+        }
+        _ => {
+            println!("Not implemented");
+            return 1;
+        }
+    }
 }
 
 
@@ -110,6 +129,7 @@ impl NetSNMP {
                 netsnmp_session: rs_netsnmp_create_session(),
                 active_session: rs_netsnmp_create_null_session(),
                 // active_variable: rs_netsnmp_create_null_variable(),
+                active_variables: Vec::new(),
                 state: SNMPState::New,
             }
         }
@@ -186,10 +206,9 @@ impl NetSNMP {
 
 
     /// Given an OID string, return the value, or unit () if no value exists.
-    pub fn get_oid(&self, oid: &str) -> Result<(), SNMPError> {
-        // Create a new vec empty vec.
-        let mut results: Vec<SNMPPdu> = Vec::new();
-        let rptr = &mut results as *mut _;
+    pub fn get_oid(&mut self, oid: &str) -> Result<Vec<SNMPResult>, SNMPError> {
+        // Empty the vector
+        self.active_variables.clear();
         match self.state {
             SNMPState::Connected => {},
             _ => return Err(SNMPError::InvalidState)
@@ -197,13 +216,16 @@ impl NetSNMP {
         // Perhaps this should be Result<Option<>, SNMPError>> ??
         let c_oid = CString::new(oid).unwrap();
         unsafe {
-            match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), rptr, _set_result_cb) {
-                0 => Ok(()),
+            match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), self, _set_result_cb) {
+                0 => {
+                    println!("{:?}", self.active_variables);
+                    // Next challenge: Make this return a vec ..... 
+                    Ok(self.active_variables)
+                },
                 _ => Err(SNMPError::Unknown),
             }
         }
 
-        
     }
 
     // We should have a private fn that after the OID is grabbed,

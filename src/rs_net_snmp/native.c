@@ -14,7 +14,7 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <string.h>
 
-typedef void (*rust_callback)(void*);
+typedef void (*rust_callback)(void *, int64_t, void *);
 
 netsnmp_session *
 rs_netsnmp_create_session() {
@@ -120,14 +120,18 @@ _rs_netsnmp_variable_to_str(netsnmp_variable_list *var) {
 }
 
 int
-_rs_netsnmp_display_variables(netsnmp_pdu *response) {
+_rs_netsnmp_display_variables(netsnmp_pdu *response, void* callback_target, rust_callback callback) {
     netsnmp_variable_list *vars = NULL;
+    void *cb_target = callback_target; // This is the object (self)
+    rust_callback cb = callback; // This is the actual cb
+
     for (vars = response->variables; vars; vars = vars->next_variable) {
         // print_variable(vars->name, vars->name_length, vars);
         if (vars->type == ASN_OCTET_STR) {
             char *value = _rs_netsnmp_variable_to_str(vars);
             if (value != NULL) {
-                printf("%s\n", value);
+                printf("\n", value);
+                cb(cb_target, vars->type, value);
                 free(value);
             }
         } else if (vars->type == ASN_TIMETICKS) {
@@ -156,8 +160,6 @@ _rs_netsnmp_display_variables(netsnmp_pdu *response) {
 
 int
 rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_target, rust_callback callback) {
-    void *cb_target = callback_target; // This is the object (self)
-    rust_callback cb = callback; // This is the actual cb
     netsnmp_pdu *pdu = NULL;
     netsnmp_pdu *response = NULL;
     size_t parsed_oid_len = MAX_OID_LEN;
@@ -166,9 +168,6 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_ta
     int rs_result = -1;
 
     printf("%s = ", request_oid);
-
-    // Test the cb
-    cb(cb_target);
 
     // Create a PDU for the data to land in
     pdu = snmp_pdu_create(SNMP_MSG_GET);
@@ -184,7 +183,7 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_ta
         result = snmp_synch_response(active, pdu, &response);
         if (result == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
             // process the content of status as a response
-            _rs_netsnmp_display_variables(response);
+            _rs_netsnmp_display_variables(response, callback_target, callback);
             rs_result = 0;
         } else {
             if (result == STAT_SUCCESS) {
