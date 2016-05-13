@@ -206,38 +206,27 @@ impl NetSNMP {
 
 
     /// Given an OID string, return the value, or unit () if no value exists.
-    pub fn get_oid(&mut self, oid: &str) -> Result<Vec<SNMPResult>, SNMPError> {
-        // Empty the vector
-        self.active_variables.clear();
+    pub fn get_oid(&mut self, oid: &str) -> Result<&Vec<SNMPResult>, SNMPError> {
         match self.state {
             SNMPState::Connected => {},
             _ => return Err(SNMPError::InvalidState)
         }
+        // Empty the vector
+        self.active_variables.clear();
         // Perhaps this should be Result<Option<>, SNMPError>> ??
         let c_oid = CString::new(oid).unwrap();
         unsafe {
             match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), self, _set_result_cb) {
                 0 => {
-                    println!("{:?}", self.active_variables);
+                    println!("get_oid() {:?}", self.active_variables);
                     // Next challenge: Make this return a vec ..... 
-                    Ok(self.active_variables)
+                    Ok(&self.active_variables)
                 },
                 _ => Err(SNMPError::Unknown),
             }
         }
 
     }
-
-    // We should have a private fn that after the OID is grabbed,
-    // Set the state to resultset or something?
-    // we parse the result. This means we make a vec!()
-    // Then we do while true, vec.push next value.
-    // We need a wrapper for the values though  
-    // The wrapper will need an enum of them types, and a way to store the
-    // possible values?
-    // as they go.
-    // Once we have the values out, we free the results, and put the state back
-    // to connected for the next get.
 
     /// Close and disconnect the active session to an snmp daemon
     pub fn close_session(&mut self) -> Result<(), SNMPError> {
