@@ -35,6 +35,7 @@ pub enum SNMPVersion {
     VERSION_3,
 }
 
+pub const ASN_INTEGER: isize = 2; // I think ....
 pub const ASN_OCTET_STR: isize = 4;
 pub const ASN_OID: isize = 6;
 pub const ASN_TIMETICKS: isize = 67;
@@ -56,6 +57,7 @@ pub enum SNMPError {
 pub enum SNMPResult {
     AsnOctetStr { s: String },
     AsnInteger { i: isize },
+    AsnTimeticks { i: isize },
 }
 
 #[derive(Debug)]
@@ -109,7 +111,21 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
                 let value = CStr::from_ptr(ptr).to_string_lossy().into_owned();
                 // println!("{:?}", value);
                 // println!("{:?}", (*target));
-                (*target).active_variables.push(SNMPResult::AsnOctetStr{s: value} );
+                (*target).active_variables.push(SNMPResult::AsnOctetStr {s: value} );
+            }
+            return 0;
+        }
+        ASN_TIMETICKS => {
+            let ival: isize = data as isize;
+            unsafe {
+                (*target).active_variables.push(SNMPResult::AsnTimeticks {i : ival} );
+            }
+            return 0;
+        }
+        ASN_INTEGER => {
+            let ival: isize = data as isize;
+            unsafe {
+                (*target).active_variables.push(SNMPResult::AsnInteger {i : ival} );
             }
             return 0;
         }
