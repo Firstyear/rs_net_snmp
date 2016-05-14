@@ -63,7 +63,6 @@ rs_netsnmp_set_version(netsnmp_session *session, int version) {
 int
 rs_netsnmp_set_community(netsnmp_session *session, char *community) {
     int res = 1;
-    // Do I need to free this?
     session->community = strdup(community);
     session->community_len = strlen(community);
     res = 0;
@@ -79,8 +78,6 @@ rs_netsnmp_get_community(netsnmp_session *session) {
 int
 rs_netsnmp_set_peername(netsnmp_session *session, char *transport)
 {
-    // Do I need to strdup this?
-    // Do I need to free this?
     session->peername = strdup(transport);
     return 0;
 }
@@ -98,7 +95,6 @@ rs_netsnmp_open_session(netsnmp_session *session) {
     netsnmp_session *active = NULL;
     // SOCK_ is only for win32
     // SOCK_STARTUP;
-    // The error is here. Active isn't being set.
     active = snmp_open(session);
     if (active == NULL) {
         snmp_sess_perror("ack", &active);
@@ -130,35 +126,18 @@ _rs_netsnmp_display_variables(netsnmp_pdu *response, void* callback_target, rust
         if (vars->type == ASN_OCTET_STR) {
             char *value = _rs_netsnmp_variable_to_str(vars);
             if (value != NULL) {
-                printf("\n", value);
                 cb(cb_target, vars->type, value);
                 free(value);
             }
         } else if (vars->type == ASN_TIMETICKS) {
             cb(cb_target, vars->type, vars->val.integer);
-            printf("%lu\n", vars->val.integer);
         } else if (vars->type == ASN_INTEGER) {
             cb(cb_target, vars->type, vars->val.integer);
-            printf("%lu\n", vars->val.integer);
-        // } else if (vars->type == ASN_OBJECT_ID) {
-        //     printf("%s\n", vars->val.objid);
-        } else {
-            printf("NOT IMPLEMENTED YET\n");
+        // } else {
+            // printf("NOT IMPLEMENTED YET\n");
         }
     }
 }
-
-// I think that perhaps the way to do this is to accept a c_void **
-// we return a TYPE value
-// Then we populate the c_void with the correct data.
-// We will need to provide a Free_result function
-// How do we handle multi-values responses?
-
-// Or, we could return the response value, then, based on the type we return
-// rust can then direct the response into the correct place?
-// Or would I just return the first variables value?
-// Would I need to memcpy it?
-// How would I clean up?
 
 int
 rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_target, rust_callback callback) {
@@ -169,8 +148,6 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_ta
     int result;
     int rs_result = -1;
 
-    printf("%s = ", request_oid);
-
     // Create a PDU for the data to land in
     pdu = snmp_pdu_create(SNMP_MSG_GET);
     // Parse the oid we were given.
@@ -178,10 +155,7 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_ta
         // We don't need to call cleanup, rust will do that for us.
         rs_result = 2;
     } else {
-        // read_objid(some mib) will allow parse of a name OR an oid?
-        // snmp_add_null_var -- zero it
         snmp_add_null_var(pdu, parsed_oid, parsed_oid_len);
-        // status = snmp_synch_response -- get the request
         result = snmp_synch_response(active, pdu, &response);
         if (result == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
             // process the content of status as a response
@@ -199,7 +173,6 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_ta
             rs_result = 1;
         }
     }
-    // 
     if (response != NULL) {
         snmp_free_pdu(response);
     }
@@ -225,7 +198,6 @@ rs_netsnmp_destroy_session(netsnmp_session *session) {
         if (session->peername) {
             free(session->peername);
         }
-        // This causes a valgrind error?
         free(session);
     }
 }

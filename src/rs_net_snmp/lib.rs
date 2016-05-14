@@ -35,9 +35,13 @@ pub enum SNMPVersion {
     VERSION_3,
 }
 
+/// From net-snmp headers, to match an int type in the result.
 pub const ASN_INTEGER: isize = 2; // I think ....
+/// From net-snmp headers, to match a *char type in the result.
 pub const ASN_OCTET_STR: isize = 4;
+/// From net-snmp headers, to match an oid type in the result.
 pub const ASN_OID: isize = 6;
+/// From net-snmp headers, to match an int type in the result.
 pub const ASN_TIMETICKS: isize = 67;
 
 #[derive(Debug)]
@@ -54,10 +58,18 @@ pub enum SNMPError {
 }
 
 #[derive(Debug)]
+/// Wraps the types of responses that the library can possibly return from a
+/// query to an SNMP server.
 pub enum SNMPResult {
-    AsnOctetStr { s: String },
-    AsnInteger { i: isize },
-    AsnTimeticks { i: isize },
+    /// An octet string was returned
+    AsnOctetStr { /// The octet string
+                    s: String },
+    /// A integer was returned
+    AsnInteger { /// The integer
+                    i: isize },
+    /// An integer representing time in seconds since some point.
+    AsnTimeticks { /// The time as integer seconds
+                    i: isize },
 }
 
 #[derive(Debug)]
@@ -83,9 +95,7 @@ extern {
     fn rs_netsnmp_create_null_session() -> *const libc::c_void;
     fn rs_netsnmp_set_version(session: *const libc::c_void, version: isize) -> isize;
     fn rs_netsnmp_set_community(session: *const libc::c_void, community: *const c_char) -> isize;
-    // fn rs_netsnmp_get_community(session: *const libc::c_void) -> *mut c_char;
     fn rs_netsnmp_set_peername(session: *const libc::c_void, hostname: *const c_char) -> isize;
-    // fn rs_netsnmp_get_peername(session: *const libc::c_void) -> *mut c_char;
     fn rs_netsnmp_open_session(session: *const libc::c_void) -> *const libc::c_void;
     fn rs_netsnmp_get_oid(session: *const libc::c_void, oid: *const c_char, target: *mut NetSNMP, cb: extern fn(*mut NetSNMP, isize, *const libc::c_void) -> isize) -> isize;
     fn rs_netsnmp_destroy_session(session: *const libc::c_void);
@@ -93,12 +103,10 @@ extern {
 
 /// NetSNMP tracks an active connection session to an snmpd daemon.
 #[derive(Debug)]
+#[repr(C)]
 pub struct NetSNMP {
-    // I think this just needs to track the pointer to the internal
-    // struct for the native helper.
     netsnmp_session: *const libc::c_void,
     active_session: *const libc::c_void,
-    // active_variable: *const libc::c_void,
     active_variables: Vec<SNMPResult>,
     state: SNMPState,
 }
@@ -153,8 +161,6 @@ impl NetSNMP {
 
     /// Set the version of this session. Please see SNMPVersion.
     pub fn set_version(&self, version: SNMPVersion) -> Result<(), SNMPError> {
-        // Need to make the enum able to call the right version
-        // set thing.
         match self.state {
             SNMPState::New => {},
             _ => return Err(SNMPError::InvalidState)
@@ -206,7 +212,6 @@ impl NetSNMP {
             _ => return Err(SNMPError::InvalidState)
         }
         self.state = SNMPState::Connected;
-        // Is there a better way than taking self as mut?
         // This should check the VERSION of snmp, and then that the right
         //  parts have been filled in. 
         unsafe {
@@ -229,13 +234,11 @@ impl NetSNMP {
         }
         // Empty the vector
         self.active_variables.clear();
-        // Perhaps this should be Result<Option<>, SNMPError>> ??
         let c_oid = CString::new(oid).unwrap();
         unsafe {
             match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), self, _set_result_cb) {
                 0 => {
-                    println!("get_oid() {:?}", self.active_variables);
-                    // Next challenge: Make this return a vec ..... 
+                    // println!("get_oid() {:?}", self.active_variables);
                     Ok(&self.active_variables)
                 },
                 _ => Err(SNMPError::Unknown),
@@ -263,11 +266,8 @@ impl NetSNMP {
     /// This implies disconnection of the session!
     pub fn destroy(&mut self) {
         match self.state {
-            SNMPState::Connected => {},
-            SNMPState::Disconnected => {},
-            SNMPState::Error => {},
-            // _ => return Err(SNMPError::InvalidState)
-            _ => return (),
+            SNMPState::Destroyed => return (),
+            _ => {},
         }
         self.state = SNMPState::Destroyed;
         unsafe {

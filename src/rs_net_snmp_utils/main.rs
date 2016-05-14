@@ -23,9 +23,9 @@ fn main() {
     rssnmp.set_community("public").unwrap();
     rssnmp.set_transport("tcp6:localhost").unwrap();
     rssnmp.open_session().unwrap();
-    println!("{:?}", rssnmp.get_oid(".1.3.6.1.2.1.1.5.0").unwrap() );
-    rssnmp.get_oid(".1.3.6.1.2.1.1.9.1.4.1").unwrap();
-    rssnmp.get_oid(".1.3.6.1.2.1.1.9.1.2.7").unwrap();
+    println!(".1.3.6.1.2.1.1.5.0 = {:?}", rssnmp.get_oid(".1.3.6.1.2.1.1.5.0").unwrap() );
+    println!(".1.3.6.1.2.1.1.9.1.4.1 = {:?}", rssnmp.get_oid(".1.3.6.1.2.1.1.9.1.4.1").unwrap());
+    println!(".1.3.6.1.2.1.1.9.1.2.7 = {:?}", rssnmp.get_oid(".1.3.6.1.2.1.1.9.1.2.7").unwrap());
     // rssnmp.get_oid(".1.3.6.1.2.1.1.5.0").unwrap();
     rssnmp.destroy();
 }
