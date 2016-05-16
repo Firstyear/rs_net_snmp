@@ -9,10 +9,19 @@ gcc = "0.3"
 
 [dependencies]
 libc = "0.2.0"
+getopts = "0.2"
 
 [lib]
 path="src/rs_net_snmp/lib.rs"
 
 [[bin]]
-path="src/rs_net_snmp_utils/main.rs"
-name="snmptest"
+path="src/rs_net_snmp_utils/rsnmpdemo.rs"
+name="rsnmpdemo"
+
+[[bin]]
+path="src/rs_net_snmp_utils/rsnmpget.rs"
+name="rsnmpget"
+
+[[bin]]
+path="src/rs_net_snmp_utils/optsdemo.rs"
+name="optsdemo"

@@ -228,6 +228,8 @@ impl NetSNMP {
 
     /// Given an OID string, return the value, or unit () if no value exists.
     pub fn get_oid(&mut self, oid: &str) -> Result<&Vec<SNMPResult>, SNMPError> {
+        // TODO: To handle if the oid doesn't exist, this makes an empty vec.
+        // It should return a better error.
         match self.state {
             SNMPState::Connected => {},
             _ => return Err(SNMPError::InvalidState)
