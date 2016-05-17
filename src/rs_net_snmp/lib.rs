@@ -58,6 +58,7 @@ pub enum SNMPError {
 }
 
 #[derive(Debug)]
+#[repr(C)]
 /// Wraps the types of responses that the library can possibly return from a
 /// query to an SNMP server.
 pub enum SNMPResult {
@@ -73,6 +74,7 @@ pub enum SNMPResult {
 }
 
 #[derive(Debug)]
+#[repr(C)]
 /// The current state of the struct. This protects certain values.
 enum SNMPState {
     /// The NetSnmp structure is just made. Only set_* can be called.

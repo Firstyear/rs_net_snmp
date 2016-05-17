@@ -18,13 +18,14 @@ use std::env;
 
 use rs_net_snmp::NetSNMP;
 use rs_net_snmp::SNMPVersion;
+use rs_net_snmp::SNMPResult;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options] AGENT OID", program);
     print!("{}", opts.usage(&brief));
 }
 
-fn _display_oid(oid: &str, community: &str, agent: &str, version: SNMPVersion) {
+fn _display_oid_1_2c(oid: &str, community: &str, agent: &str, version: SNMPVersion) {
     let mut rssnmp: NetSNMP = NetSNMP::new();
     // Are these okay to unwrap and panic? Or should we be better?
     rssnmp.set_version(version).unwrap();
@@ -36,7 +37,17 @@ fn _display_oid(oid: &str, community: &str, agent: &str, version: SNMPVersion) {
     match rssnmp.get_oid(oid) {
         Ok(r) => {
             // If the vec is empty, it probably means no such oid ...
-            println!("{:?}", r);
+            // println!("{:?}", r);
+            for v in r {
+                print!("{} = ", oid);
+                match v {
+                    &SNMPResult::AsnOctetStr { s: ref sv} => print!("{} ", sv),
+                    &SNMPResult::AsnInteger { i: ref iv} => print!("{} ", iv),
+                    &SNMPResult::AsnTimeticks { i: ref iv} => print!("{} ", iv),
+                    // _ => { println!("Unable to format this value!") }
+                }
+                println!("");
+            }
         },
         Err(e) => {
             println!("{:?}", e);
@@ -85,21 +96,6 @@ fn main() {
         }
     };
 
-    // We have the version, which dictates what we need next ....
-    // Should this actually be an if?
-    match version {
-        SNMPVersion::VERSION_3 => {
-            // Print a better error here ....
-            print_usage(&program, opts);
-            return;
-        }
-        _ => {
-            // 1 and 2 basically take the same options.
-        }
-    }
-
-    let community = matches.opt_str("c");
-
     let agent = match matches.free.get(0) {
         Some(a) => { a.clone() }
         None => {
@@ -116,7 +112,32 @@ fn main() {
         }
     };
 
-    println!("{:?} {:?} {:?} {:?}", agent, oid, community.unwrap(), version);
+    // We have the version, which dictates what we need next ....
+    // Should this actually be an if?
+    match version {
+        SNMPVersion::VERSION_3 => {
+            // Print a better error here ....
+            print_usage(&program, opts);
+            return;
+        }
+        _ => {
+            // 1 and 2 basically take the same options.
+            // We can just match on the needed options, return if they are none
+            // Then we can trust the unwrap later ....
+            // Though I consider there could be a better way.
+            let community = match matches.opt_str("c") {
+                Some(c) => { c }
+                None => {
+                    print_usage(&program, opts);
+                    return;
+                }
+            };
+
+            _display_oid_1_2c(&oid, &community, &agent, version);
+        }
+    }
+
+
     // get thi oid
     // SNMPVersion::VERSION_2c
     // Create a new session
