@@ -16,38 +16,30 @@ extern crate getopts;
 use getopts::Options;
 use std::env;
 
-use rs_net_snmp::NetSNMP;
 use rs_net_snmp::SNMPVersion;
-use rs_net_snmp::SNMPResult;
+use rs_net_snmp::display_snmpresults;
+use rs_net_snmp::NetSNMP;
+
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options] AGENT OID", program);
     print!("{}", opts.usage(&brief));
 }
 
-fn _display_oid_1_2c(oid: &str, community: &str, agent: &str, version: SNMPVersion) {
+
+/// This is a helper for getting the value.
+/// by oid / agent / community / version for v1 and v2c
+fn get_oid_1_2c(oid: &str, community: &str, agent: &str, version: SNMPVersion) {
     let mut rssnmp: NetSNMP = NetSNMP::new();
     // Are these okay to unwrap and panic? Or should we be better?
     rssnmp.set_version(version).unwrap();
     rssnmp.set_community(community).unwrap();
     rssnmp.set_transport(agent).unwrap();
     rssnmp.open_session().unwrap();
-    // Can we validate the oid?
-    // match the result.
+
     match rssnmp.get_oid(oid) {
         Ok(r) => {
-            // If the vec is empty, it probably means no such oid ...
-            // println!("{:?}", r);
-            for v in r {
-                print!("{} = ", oid);
-                match v {
-                    &SNMPResult::AsnOctetStr { s: ref sv} => print!("{} ", sv),
-                    &SNMPResult::AsnInteger { i: ref iv} => print!("{} ", iv),
-                    &SNMPResult::AsnTimeticks { i: ref iv} => print!("{} ", iv),
-                    // _ => { println!("Unable to format this value!") }
-                }
-                println!("");
-            }
+            display_snmpresults(oid, r);
         },
         Err(e) => {
             println!("{:?}", e);
@@ -132,14 +124,9 @@ fn main() {
                     return;
                 }
             };
+            get_oid_1_2c(&oid, &community, &agent, version);
 
-            _display_oid_1_2c(&oid, &community, &agent, version);
         }
     }
-
-
-    // get thi oid
-    // SNMPVersion::VERSION_2c
-    // Create a new session
 
 }

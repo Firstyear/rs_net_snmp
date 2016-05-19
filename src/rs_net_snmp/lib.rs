@@ -229,7 +229,7 @@ impl NetSNMP {
 
 
     /// Given an OID string, return the value, or unit () if no value exists.
-    pub fn get_oid(&mut self, oid: &str) -> Result<&Vec<SNMPResult>, SNMPError> {
+    pub fn get_oid(&mut self, oid: &str) -> Result<Option<&Vec<SNMPResult>>, SNMPError> {
         // TODO: To handle if the oid doesn't exist, this makes an empty vec.
         // It should return a better error.
         match self.state {
@@ -243,7 +243,10 @@ impl NetSNMP {
             match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), self, _set_result_cb) {
                 0 => {
                     // println!("get_oid() {:?}", self.active_variables);
-                    Ok(&self.active_variables)
+                    Ok(Some(&self.active_variables))
+                },
+                3 => {
+                    Ok(None)
                 },
                 _ => Err(SNMPError::Unknown),
             }
@@ -280,4 +283,27 @@ impl NetSNMP {
         }
     }
 }
+
+/// Given a &vec<SNMPResults>, display these in a reasonable
+/// format to the formatter.
+pub fn display_snmpresults(oid: &str, results: Option<&Vec<SNMPResult>>) {
+    match results {
+        Some(r) => {
+            for v in r {
+                print!("{} = ", oid);
+                match v {
+                    &SNMPResult::AsnOctetStr { s: ref sv} => print!("{} ", sv),
+                    &SNMPResult::AsnInteger { i: ref iv} => print!("{} ", iv),
+                    &SNMPResult::AsnTimeticks { i: ref iv} => print!("{} ", iv),
+                    // _ => { println!("Unable to format this value!") }
+                }
+                println!("");
+            }
+        }
+        None => {
+            println!("{} = No values", oid);
+        }
+    }
+}
+
 

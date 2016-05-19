@@ -120,9 +120,11 @@ _rs_netsnmp_display_variables(netsnmp_pdu *response, void* callback_target, rust
     netsnmp_variable_list *vars = NULL;
     void *cb_target = callback_target; // This is the object (self)
     rust_callback cb = callback; // This is the actual cb
+    int count = 0;
 
     for (vars = response->variables; vars; vars = vars->next_variable) {
         // print_variable(vars->name, vars->name_length, vars);
+        count++;
         if (vars->type == ASN_OCTET_STR) {
             char *value = _rs_netsnmp_variable_to_str(vars);
             if (value != NULL) {
@@ -137,6 +139,7 @@ _rs_netsnmp_display_variables(netsnmp_pdu *response, void* callback_target, rust
             // printf("NOT IMPLEMENTED YET\n");
         }
     }
+    return count;
 }
 
 int
@@ -159,8 +162,12 @@ rs_netsnmp_get_oid(netsnmp_session *active, char *request_oid, void* callback_ta
         result = snmp_synch_response(active, pdu, &response);
         if (result == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
             // process the content of status as a response
-            _rs_netsnmp_display_variables(response, callback_target, callback);
-            rs_result = 0;
+            if (_rs_netsnmp_display_variables(response, callback_target, callback) == 0) {
+                // There were no results, 
+                rs_result = 3;
+            } else {
+                rs_result = 0;
+            }
         } else {
             if (result == STAT_SUCCESS) {
                 printf("Error in packet %s \n", snmp_errstring(response->errstat));
