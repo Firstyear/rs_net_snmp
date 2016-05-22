@@ -24,5 +24,5 @@ path="src/rs_net_snmp_utils/rsnmpget.rs"
 name="rsnmpget"
 
 [[bin]]
-path="src/rs_net_snmp_utils/optsdemo.rs"
-name="optsdemo"
+path="src/rs_net_snmp_utils/rsnmpmonitor.rs"
+name="rsnmpmonitor"

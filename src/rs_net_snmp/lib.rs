@@ -25,6 +25,8 @@ use std::ffi::CStr;
 
 #[repr(C)]
 #[derive(Debug)]
+#[derive(Clone)]
+#[derive(Copy)]
 /// The possible set of SNMP versions avaliable
 pub enum SNMPVersion {
     /// Version 1
@@ -45,8 +47,6 @@ pub const ASN_OID: isize = 6;
 pub const ASN_TIMETICKS: isize = 67;
 
 #[derive(Debug)]
-#[derive(Clone)]
-#[derive(Copy)]
 /// Errors that can occur during SNMP processing
 pub enum SNMPError {
     /// Out of memory
@@ -121,7 +121,7 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
             let ptr: *const c_char = data as *const c_char;
             unsafe {
                 let value = CStr::from_ptr(ptr).to_string_lossy().into_owned();
-                // println!("{:?}", value);
+                println!("{:?}", value);
                 // println!("{:?}", (*target));
                 (*target).active_variables.push(SNMPResult::AsnOctetStr {s: value} );
             }
@@ -129,6 +129,7 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
         }
         ASN_TIMETICKS => {
             let ival: isize = data as isize;
+            println!("{:?}", ival);
             unsafe {
                 (*target).active_variables.push(SNMPResult::AsnTimeticks {i : ival} );
             }
@@ -136,6 +137,7 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
         }
         ASN_INTEGER => {
             let ival: isize = data as isize;
+            println!("{:?}", ival);
             unsafe {
                 (*target).active_variables.push(SNMPResult::AsnInteger {i : ival} );
             }

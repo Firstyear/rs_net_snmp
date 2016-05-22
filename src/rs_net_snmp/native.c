@@ -132,9 +132,9 @@ _rs_netsnmp_display_variables(netsnmp_pdu *response, void* callback_target, rust
                 free(value);
             }
         } else if (vars->type == ASN_TIMETICKS) {
-            cb(cb_target, vars->type, vars->val.integer);
+            cb(cb_target, vars->type, *(vars->val.integer));
         } else if (vars->type == ASN_INTEGER) {
-            cb(cb_target, vars->type, vars->val.integer);
+            cb(cb_target, vars->type, *(vars->val.integer));
         // } else {
             // printf("NOT IMPLEMENTED YET\n");
         }
