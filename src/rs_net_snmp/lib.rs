@@ -45,6 +45,8 @@ pub const ASN_OID: isize = 6;
 pub const ASN_TIMETICKS: isize = 67;
 
 #[derive(Debug)]
+#[derive(Clone)]
+#[derive(Copy)]
 /// Errors that can occur during SNMP processing
 pub enum SNMPError {
     /// Out of memory
