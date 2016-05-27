@@ -23,6 +23,19 @@ enum MonitorError {
     Unknown,
 }
 
+// Would this be an option? Or a result? 
+fn get_oid(rssnmp: &mut NetSNMP, oid: &str) {
+    match rssnmp.get_oid(oid) {
+        Ok(r) => {
+            display_snmpresults(oid, r);
+            //    if it doesn't match, get the fail check oid too.
+        },
+        Err(e) => {
+            println!("{:?}", e);
+        },
+    }
+}
+
 fn do_work(community: &str, version: SNMPVersion) -> Result<(), MonitorError> {
 
     let toml = r#"
@@ -30,6 +43,7 @@ fn do_work(community: &str, version: SNMPVersion) -> Result<(), MonitorError> {
 [localhost]
 ".1.3.6.1.4.1.2021.2.1.100.1" = { expect = "0", fail = ".1.3.6.1.4.1.2021.2.1.101.1" }
 ".1.3.6.1.4.1.2021.2.1.100.2" = { expect = "0", fail = ".1.3.6.1.4.1.2021.2.1.101.2" }
+"UCD-SNMP-MIB::dskErrorFlag.1" = { expect = "audispd", fail = "UCD-SNMP-MIB::dskErrorMsg.1" }
 
 ["alina.ipa.blackhats.net.au"]
 ".1.3.6.1.4.1.2021.2.1.2.1" = { expect = "audispd", fail = ".1.3.6.1.4.1.2021.2.1.101.1" }
@@ -56,17 +70,10 @@ fn do_work(community: &str, version: SNMPVersion) -> Result<(), MonitorError> {
         match rssnmp.open_session() {
             Ok(()) => {
                 for (oid, check) in value.as_table().unwrap().iter() {
-                    println!("    oid: {:?} {:?}", oid, check);
 
-                    match rssnmp.get_oid(oid) {
-                        Ok(r) => {
-                            display_snmpresults(oid, r);
-                            //    if it doesn't match, get the fail check oid too.
-                        },
-                        Err(e) => {
-                            println!("{:?}", e);
-                        },
-                    }
+                    println!("    oid: {:?} {:?}", oid, check);
+                    get_oid(&mut rssnmp, oid);
+
                 };
             },
             Err(e) => {
