@@ -17,50 +17,68 @@ extern crate rs_net_snmp;
 use rs_net_snmp::SNMPVersion;
 use rs_net_snmp::NetSNMP;
 use rs_net_snmp::SNMPResult;
-use rs_net_snmp::display_snmpresults;
 
 use std::fs::File;
 // use std::io;
 use std::io::prelude::*;
 
-#[derive(Debug)]
-enum MonitorError {
-    Unknown,
-}
+use std::process::exit;
 
-// Would this be an option? Or a result? 
-fn get_oid(rssnmp: &mut NetSNMP, oid: &str) {
-    match rssnmp.get_oid(oid) {
-        Ok(r) => {
-            display_snmpresults(oid, r);
-            //    if it doesn't match, get the fail check oid too.
-        },
-        Err(e) => {
-            println!("{:?}", e);
-        },
-    }
-}
 
 // This condenses all the possible options to a success or not
-fn get_oid_or_alt<T>(rssnmp: &mut NetSNMP, oid: &str, expect: T, altoid: &str) {
-    println!("get_oid_or_alt {} else {}", oid, altoid);
-    // Rewrite this to "and then"
-    match rssnmp.get_oid(oid) {
+fn get_oid_or_alt(rssnmp: &mut NetSNMP, oid: &str, expect: &toml::Value, altoid: &str) -> bool {
+    let success = match rssnmp.get_oid(oid) {
         Ok(r) => {
-            // Unwrap the option
-            match r {
-                Some(v) => {
-                    println!("{:?}", v);
-                },
-                None => {
-                    println!("No value");
+            // Now we need to process the possible options.
+            if r.is_empty() {
+                // There is no oid, so it must be okay.
+                true
+            } else {
+                let result = r.first().unwrap();
+                print!("{} -> {:?} == ", oid, result);
+                // How can we check T against this type?
+
+                match result {
+                    &SNMPResult::AsnOctetStr { s: ref sv} => *sv == expect.as_str().unwrap(),
+                    &SNMPResult::AsnInteger { i: ref iv} => *iv == expect.as_integer().unwrap() as isize,
+                    &SNMPResult::AsnTimeticks { i: ref iv} => *iv == expect.as_integer().unwrap() as isize,
                 }
             }
         },
         Err(e) => {
             println!("{:?}", e);
+            false
         },
+    };
+
+    // This finishes the println! above for the status
+    println!("{}", success);
+
+    if !success {
+        print!("    fail {} -> ", altoid);
+        match rssnmp.get_oid(altoid) {
+            Ok(r) => {
+                // Now we need to process the possible options.
+                if r.is_empty() {
+                    // There is no oid, so it must be okay.
+                    println!("NO DATA");
+                } else {
+                    let result = r.first().unwrap();
+                    // How can we check T against this type?
+
+                    match result {
+                        &SNMPResult::AsnOctetStr { s: ref sv} => println!("{}", sv),
+                        &SNMPResult::AsnInteger { i: ref iv} => println!("{}", iv),
+                        &SNMPResult::AsnTimeticks { i: ref iv} => println!("{}", iv),
+                    }
+                }
+            },
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
     }
+    success
 }
 
 fn get_toml_data() -> String {
@@ -72,7 +90,7 @@ fn get_toml_data() -> String {
     input
 }
 
-fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNMPVersion) -> Result<(), MonitorError> {
+fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNMPVersion) -> bool {
 
     let mut success = true;
 
@@ -93,8 +111,10 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
                 let expect = t.get("expect").unwrap();
                 let altoid = t.get("fail").unwrap().as_str().unwrap();
 
-                println!("    oid: {:?} {:?}", oid, check);
-                get_oid_or_alt(&mut rssnmp, oid, expect, altoid);
+                // println!("    oid: {:?} {:?}", oid, check);
+                if !get_oid_or_alt(&mut rssnmp, oid, expect, altoid) {
+                    success = false;
+                }
 
             };
         },
@@ -111,21 +131,32 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
 
     println!("{}", success);
 
-    Ok(())
+    success
 }
 
-fn do_work(community: &str, version: SNMPVersion) {
+fn do_work(community: &str, version: SNMPVersion) -> bool {
     let toml = get_toml_data();
+    let mut success = true;
 
-    let value = toml::Parser::new(&toml).parse().unwrap();
-
-    for (hostname, value) in value.iter() {
-        check_host(hostname, value, community, version);
+    match toml::Parser::new(&toml).parse() {
+        Some(value) => {
+            for (hostname, value) in value.iter() {
+                if !check_host(hostname, value, community, version) {
+                    success = false;
+                }
+            }
+        }
+        None => {
+            println!("No values in toml. Please check the file!");
+        }
     }
+    success
 }
 
 
 fn main() {
-    do_work("public", SNMPVersion::VERSION_2c);
+    if !do_work("public", SNMPVersion::VERSION_2c) {
+        exit(1);
+    }
 }
 

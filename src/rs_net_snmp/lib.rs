@@ -121,7 +121,7 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
             let ptr: *const c_char = data as *const c_char;
             unsafe {
                 let value = CStr::from_ptr(ptr).to_string_lossy().into_owned();
-                println!("{:?}", value);
+                // println!("{:?}", value);
                 // println!("{:?}", (*target));
                 (*target).active_variables.push(SNMPResult::AsnOctetStr {s: value} );
             }
@@ -129,7 +129,7 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
         }
         ASN_TIMETICKS => {
             let ival: isize = data as isize;
-            println!("{:?}", ival);
+            // println!("{:?}", ival);
             unsafe {
                 (*target).active_variables.push(SNMPResult::AsnTimeticks {i : ival} );
             }
@@ -137,7 +137,7 @@ extern "C" fn _set_result_cb(target: *mut NetSNMP, asntype: isize, data: *const 
         }
         ASN_INTEGER => {
             let ival: isize = data as isize;
-            println!("{:?}", ival);
+            // println!("{:?}", ival);
             unsafe {
                 (*target).active_variables.push(SNMPResult::AsnInteger {i : ival} );
             }
@@ -233,7 +233,7 @@ impl NetSNMP {
 
 
     /// Given an OID string, return the value, or unit () if no value exists.
-    pub fn get_oid(&mut self, oid: &str) -> Result<Option<&Vec<SNMPResult>>, SNMPError> {
+    pub fn get_oid(&mut self, oid: &str) -> Result<&Vec<SNMPResult>, SNMPError> {
         // TODO: To handle if the oid doesn't exist, this makes an empty vec.
         // It should return a better error.
         match self.state {
@@ -247,10 +247,11 @@ impl NetSNMP {
             match rs_netsnmp_get_oid(self.active_session, c_oid.as_ptr(), self, _set_result_cb) {
                 0 => {
                     // println!("get_oid() {:?}", self.active_variables);
-                    Ok(Some(&self.active_variables))
+                    Ok(&self.active_variables)
                 },
                 3 => {
-                    Ok(None)
+                    // We may change this to return an error ....
+                    Ok(&self.active_variables)
                 },
                 _ => Err(SNMPError::Unknown),
             }
@@ -290,22 +291,19 @@ impl NetSNMP {
 
 /// Given a &vec<SNMPResults>, display these in a reasonable
 /// format to the formatter.
-pub fn display_snmpresults(oid: &str, results: Option<&Vec<SNMPResult>>) {
-    match results {
-        Some(r) => {
-            for v in r {
-                print!("{} = ", oid);
-                match v {
-                    &SNMPResult::AsnOctetStr { s: ref sv} => print!("{} ", sv),
-                    &SNMPResult::AsnInteger { i: ref iv} => print!("{} ", iv),
-                    &SNMPResult::AsnTimeticks { i: ref iv} => print!("{} ", iv),
-                    // _ => { println!("Unable to format this value!") }
-                }
-                println!("");
+pub fn display_snmpresults(oid: &str, results: &Vec<SNMPResult>) {
+    if results.is_empty() {
+        println!("{} = No values", oid);
+    } else {
+        for v in results {
+            print!("{} = ", oid);
+            match v {
+                &SNMPResult::AsnOctetStr { s: ref sv} => print!("{} ", sv),
+                &SNMPResult::AsnInteger { i: ref iv} => print!("{} ", iv),
+                &SNMPResult::AsnTimeticks { i: ref iv} => print!("{} ", iv),
+                // _ => { println!("Unable to format this value!") }
             }
-        }
-        None => {
-            println!("{} = No values", oid);
+            println!("");
         }
     }
 }
