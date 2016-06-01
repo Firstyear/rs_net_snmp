@@ -16,21 +16,3 @@
 "UCD-SNMP-MIB::prErrorFlag.8" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.8" }
 
 
-["alina.ipa.blackhats.net.au"]
-"UCD-SNMP-MIB::dskErrorFlag.1" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.1" }
-"UCD-SNMP-MIB::dskErrorFlag.2" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.2" }
-"UCD-SNMP-MIB::dskErrorFlag.3" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.3" }
-"UCD-SNMP-MIB::dskErrorFlag.4" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.4" }
-"UCD-SNMP-MIB::dskErrorFlag.5" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.5" }
-"UCD-SNMP-MIB::dskErrorFlag.6" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.6" }
-"UCD-SNMP-MIB::dskErrorFlag.7" = { expect = 0, fail = "UCD-SNMP-MIB::dskErrorMsg.7" }
-"UCD-SNMP-MIB::prErrorFlag.1" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.1" }
-"UCD-SNMP-MIB::prErrorFlag.2" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.2" }
-"UCD-SNMP-MIB::prErrorFlag.3" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.3" }
-"UCD-SNMP-MIB::prErrorFlag.4" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.4" }
-"UCD-SNMP-MIB::prErrorFlag.5" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.5" }
-"UCD-SNMP-MIB::prErrorFlag.6" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.6" }
-"UCD-SNMP-MIB::prErrorFlag.7" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.7" }
-"UCD-SNMP-MIB::prErrorFlag.8" = { expect = 0, fail = "UCD-SNMP-MIB::prErrMessage.8" }
-
-

@@ -38,21 +38,25 @@ fn get_oid_or_alt(rssnmp: &mut NetSNMP, oid: &str, expect: &toml::Value, altoid:
                 print!("{} -> {:?} == ", oid, result);
                 // How can we check T against this type?
 
-                match result {
+                // I'm not sure I like this inner assignment, but it makes formatting and flow nicer ....
+
+                let inner_success = match result {
                     &SNMPResult::AsnOctetStr { s: ref sv} => *sv == expect.as_str().unwrap(),
                     &SNMPResult::AsnInteger { i: ref iv} => *iv == expect.as_integer().unwrap() as isize,
                     &SNMPResult::AsnTimeticks { i: ref iv} => *iv == expect.as_integer().unwrap() as isize,
-                }
+                };
+
+                // This finishes the println! above for the status
+                println!("{}", inner_success);
+                inner_success
             }
         },
         Err(e) => {
-            println!("{:?}", e);
+            print!("Error: {:?}", e);
             false
         },
     };
 
-    // This finishes the println! above for the status
-    println!("{}", success);
 
     if !success {
         print!("    fail {} -> ", altoid);
@@ -74,7 +78,7 @@ fn get_oid_or_alt(rssnmp: &mut NetSNMP, oid: &str, expect: &toml::Value, altoid:
                 }
             },
             Err(e) => {
-                println!("{:?}", e);
+                println!("Error: {:?}", e);
             }
         }
     }
@@ -100,7 +104,7 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
     rssnmp.set_community(community).unwrap();
 
     let agent = "tcp6:".to_string() + hostname;
-    println!("host: {:?}", agent);
+    println!("-- host: {:?}", agent);
 
     rssnmp.set_transport(&agent).unwrap();
 
@@ -120,7 +124,7 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
         },
         Err(e) => {
             success = false;
-            println!("{:?}", e);
+            println!("Error: {:?}", e);
         }
     }
 
@@ -128,8 +132,6 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
 
 
     rssnmp.destroy();
-
-    println!("{}", success);
 
     success
 }
