@@ -16,7 +16,12 @@ extern crate rs_net_snmp;
 
 use rs_net_snmp::SNMPVersion;
 use rs_net_snmp::NetSNMP;
+use rs_net_snmp::SNMPResult;
 use rs_net_snmp::display_snmpresults;
+
+use std::fs::File;
+// use std::io;
+use std::io::prelude::*;
 
 #[derive(Debug)]
 enum MonitorError {
@@ -36,66 +41,91 @@ fn get_oid(rssnmp: &mut NetSNMP, oid: &str) {
     }
 }
 
-fn do_work(community: &str, version: SNMPVersion) -> Result<(), MonitorError> {
+// This condenses all the possible options to a success or not
+fn get_oid_or_alt<T>(rssnmp: &mut NetSNMP, oid: &str, expect: T, altoid: &str) {
+    println!("get_oid_or_alt {} else {}", oid, altoid);
+    // Rewrite this to "and then"
+    match rssnmp.get_oid(oid) {
+        Ok(r) => {
+            // Unwrap the option
+            match r {
+                Some(v) => {
+                    println!("{:?}", v);
+                },
+                None => {
+                    println!("No value");
+                }
+            }
+        },
+        Err(e) => {
+            println!("{:?}", e);
+        },
+    }
+}
 
-    let toml = r#"
+fn get_toml_data() -> String {
+    let mut input = String::new();
+    // io::stdin().read_to_string(&mut input).unwrap();
+    File::open("monitor.toml").and_then(|mut f| {
+        f.read_to_string(&mut input)
+    }).unwrap();
+    input
+}
 
-[localhost]
-".1.3.6.1.4.1.2021.2.1.100.1" = { expect = "0", fail = ".1.3.6.1.4.1.2021.2.1.101.1" }
-".1.3.6.1.4.1.2021.2.1.100.2" = { expect = "0", fail = ".1.3.6.1.4.1.2021.2.1.101.2" }
-"UCD-SNMP-MIB::dskErrorFlag.1" = { expect = "audispd", fail = "UCD-SNMP-MIB::dskErrorMsg.1" }
+fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNMPVersion) -> Result<(), MonitorError> {
 
-["alina.ipa.blackhats.net.au"]
-".1.3.6.1.4.1.2021.2.1.2.1" = { expect = "audispd", fail = ".1.3.6.1.4.1.2021.2.1.101.1" }
-".1.3.6.1.4.1.2021.2.1.2.2" = { expect = "audispd", fail = ".1.3.6.1.4.1.2021.2.1.101.2" }
-
-    "#;
-
-    let value = toml::Parser::new(toml).parse().unwrap();
     let mut success = true;
 
-    for (key, value) in value.iter() {
+    let mut rssnmp: NetSNMP = NetSNMP::new();
+    // Are these okay to unwrap and panic? Or should we be better?
+    rssnmp.set_version(version).unwrap();
+    rssnmp.set_community(community).unwrap();
 
+    let agent = "tcp6:".to_string() + hostname;
+    println!("host: {:?}", agent);
 
-        let mut rssnmp: NetSNMP = NetSNMP::new();
-        // Are these okay to unwrap and panic? Or should we be better?
-        rssnmp.set_version(version).unwrap();
-        rssnmp.set_community(community).unwrap();
+    rssnmp.set_transport(&agent).unwrap();
 
-        let agent = "tcp6:".to_string() + key;
-        println!("host: {:?}", agent);
+    match rssnmp.open_session() {
+        Ok(()) => {
+            for (oid, check) in value.as_table().unwrap().iter() {
+                let t = check.as_table().unwrap();
+                let expect = t.get("expect").unwrap();
+                let altoid = t.get("fail").unwrap().as_str().unwrap();
 
-        rssnmp.set_transport(&agent).unwrap();
+                println!("    oid: {:?} {:?}", oid, check);
+                get_oid_or_alt(&mut rssnmp, oid, expect, altoid);
 
-        match rssnmp.open_session() {
-            Ok(()) => {
-                for (oid, check) in value.as_table().unwrap().iter() {
-
-                    println!("    oid: {:?} {:?}", oid, check);
-                    get_oid(&mut rssnmp, oid);
-
-                };
-            },
-            Err(e) => {
-                success = false;
-                println!("{:?}", e);
-            }
+            };
+        },
+        Err(e) => {
+            success = false;
+            println!("{:?}", e);
         }
+    }
 
-        //    append to (?) the host, oid, value, and if it exists, the fail value too.
+    //    append to (?) the host, oid, value, and if it exists, the fail value too.
 
 
-        rssnmp.destroy();
-
-    };
+    rssnmp.destroy();
 
     println!("{}", success);
 
     Ok(())
 }
 
+fn do_work(community: &str, version: SNMPVersion) {
+    let toml = get_toml_data();
+
+    let value = toml::Parser::new(&toml).parse().unwrap();
+
+    for (hostname, value) in value.iter() {
+        check_host(hostname, value, community, version);
+    }
+}
+
 
 fn main() {
-    do_work("public", SNMPVersion::VERSION_2c).unwrap();
+    do_work("public", SNMPVersion::VERSION_2c);
 }
 

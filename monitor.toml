@@ -1,0 +1,10 @@
+[localhost]
+".1.3.6.1.4.1.2021.2.1.100.1" = { expect = "0", fail = ".1.3.6.1.4.1.2021.2.1.101.1" }
+".1.3.6.1.4.1.2021.2.1.100.2" = { expect = "0", fail = ".1.3.6.1.4.1.2021.2.1.101.2" }
+"UCD-SNMP-MIB::dskErrorFlag.1" = { expect = "audispd", fail = "UCD-SNMP-MIB::dskErrorMsg.1" }
+
+["alina.ipa.blackhats.net.au"]
+".1.3.6.1.4.1.2021.2.1.2.1" = { expect = "audispd", fail = ".1.3.6.1.4.1.2021.2.1.101.1" }
+".1.3.6.1.4.1.2021.2.1.2.2" = { expect = "audispd", fail = ".1.3.6.1.4.1.2021.2.1.101.2" }
+
+
