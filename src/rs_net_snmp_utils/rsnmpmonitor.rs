@@ -11,6 +11,12 @@
 //
 
 
+//// TODO WILLIAM:
+// Make command line switch for filepath
+// optional: Make it show single value outputs too? So we can link expected proc names, hostname, etc.
+// That will be a change to check_host, where check is None
+
+
 extern crate toml;
 extern crate rs_net_snmp;
 
@@ -26,63 +32,81 @@ use std::process::exit;
 
 
 // This condenses all the possible options to a success or not
-fn get_oid_or_alt(rssnmp: &mut NetSNMP, oid: &str, expect: &toml::Value, altoid: &str) -> bool {
+// Is there a better way to write this string?
+fn get_oid_or_alt(rssnmp: &mut NetSNMP, oid: &str, expect: &toml::Value, altoid: &str) -> (bool, String) {
+    let mut status = format!("{} -> ", oid);
     let success = match rssnmp.get_oid(oid) {
         Ok(r) => {
             // Now we need to process the possible options.
             if r.is_empty() {
                 // There is no oid, so it must be okay.
+                status.push_str("No Values");
                 true
             } else {
                 let result = r.first().unwrap();
-                print!("{} -> {:?} == ", oid, result);
                 // How can we check T against this type?
 
                 // I'm not sure I like this inner assignment, but it makes formatting and flow nicer ....
 
                 let inner_success = match result {
-                    &SNMPResult::AsnOctetStr { s: ref sv} => *sv == expect.as_str().unwrap(),
-                    &SNMPResult::AsnInteger { i: ref iv} => *iv == expect.as_integer().unwrap() as isize,
-                    &SNMPResult::AsnTimeticks { i: ref iv} => *iv == expect.as_integer().unwrap() as isize,
+                    &SNMPResult::AsnOctetStr { s: ref sv} => {
+                        status.push_str(&format!("{}", *sv));
+                        *sv == expect.as_str().unwrap()
+                    },
+                    &SNMPResult::AsnInteger { i: ref iv} => {
+                        status.push_str(&format!("{}", *iv));
+                        *iv == expect.as_integer().unwrap() as isize
+                    },
+                    &SNMPResult::AsnTimeticks { i: ref iv} => {
+                        status.push_str(&format!("{}", *iv));
+                        *iv == expect.as_integer().unwrap() as isize
+                    },
                 };
 
+                status.push_str(&format!(" status {}", inner_success));
+
                 // This finishes the println! above for the status
-                println!("{}", inner_success);
                 inner_success
             }
         },
         Err(e) => {
-            print!("Error: {:?}", e);
+            status.push_str(&format!("Error: {:?}", e));
             false
         },
     };
 
-
     if !success {
-        print!("    fail {} -> ", altoid);
+        status.push_str(&format!("\n    fail {} -> ", altoid));
         match rssnmp.get_oid(altoid) {
             Ok(r) => {
                 // Now we need to process the possible options.
                 if r.is_empty() {
                     // There is no oid, so it must be okay.
-                    println!("NO DATA");
+                    status.push_str("NO DATA")
                 } else {
                     let result = r.first().unwrap();
                     // How can we check T against this type?
 
                     match result {
-                        &SNMPResult::AsnOctetStr { s: ref sv} => println!("{}", sv),
-                        &SNMPResult::AsnInteger { i: ref iv} => println!("{}", iv),
-                        &SNMPResult::AsnTimeticks { i: ref iv} => println!("{}", iv),
+                        &SNMPResult::AsnOctetStr { s: ref sv} => {
+                            status.push_str(&format!("{}", sv))
+                        },
+                        &SNMPResult::AsnInteger { i: ref iv} => {
+                            status.push_str(&format!("{}", iv))
+                        },
+                        &SNMPResult::AsnTimeticks { i: ref iv} => {
+                            status.push_str(&format!("{}", iv))
+                        },
                     }
                 }
             },
             Err(e) => {
-                println!("Error: {:?}", e);
+                status.push_str(&format!("Error: {:?}", e));
             }
         }
     }
-    success
+
+    (success, status)
 }
 
 fn get_toml_data() -> String {
@@ -104,7 +128,6 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
     rssnmp.set_community(community).unwrap();
 
     let agent = "tcp6:".to_string() + hostname;
-    println!("-- host: {:?}", agent);
 
     rssnmp.set_transport(&agent).unwrap();
 
@@ -116,8 +139,13 @@ fn check_host(hostname: &str, value: &toml::Value, community: &str, version: SNM
                 let altoid = t.get("fail").unwrap().as_str().unwrap();
 
                 // println!("    oid: {:?} {:?}", oid, check);
-                if !get_oid_or_alt(&mut rssnmp, oid, expect, altoid) {
+                let (res, status) = get_oid_or_alt(&mut rssnmp, oid, expect, altoid);
+
+                if res {
+                    println!("{} : {}", agent, status);
+                } else {
                     success = false;
+                    writeln!(&mut std::io::stderr(), "{} : {}", agent, status).unwrap();
                 }
 
             };
