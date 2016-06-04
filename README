@@ -17,5 +17,9 @@ useful functions with pure rust types.
     rssnmp.destroy();
 ```
 
+This library provides a number of rust commands that interact with this library:
 
+* rsnmpdemo  Is an implementation of the above example.
+* rsnmpget  Is intentded to be a "parallel" to snmpget
+* rsnmpmonitor  Takes a toml file of oids to monitor, and returns their status. Intended for use with cron.
 
