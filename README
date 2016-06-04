@@ -1,21 +1,13 @@
-//
-// BEGIN COPYRIGHT BLOCK
-// Copyright (C) 2016 William Brown
-// All rights reserved.
-//
-// License: GPL (version 3 or any later version).
-// See LICENSE for details. 
-// END COPYRIGHT BLOCK
-//
-// Author: William Brown <wibrown@redhat.com>
-//
 
-extern crate rs_net_snmp;
+rs_net_snmp is a rust binding to libnetsnmp.
 
-use rs_net_snmp::NetSNMP;
-use rs_net_snmp::SNMPVersion;
+At the moment is is capable of connecting to version 1 and 2c snmp servers
+to query oids.
 
-fn main() {
+The library is design to mask many of the complexities of the libnetsnmp into
+useful functions with pure rust types.
+
+```
     let mut rssnmp: NetSNMP = NetSNMP::new();
     rssnmp.set_version(SNMPVersion::VERSION_2c).unwrap();
     rssnmp.set_community("public").unwrap();
@@ -23,4 +15,7 @@ fn main() {
     rssnmp.open_session().unwrap();
     println!("SNMPv2-MIB::sysName.0 = {:?}", rssnmp.get_oid("SNMPv2-MIB::sysName.0").unwrap() );
     rssnmp.destroy();
-}
+```
+
+
+
